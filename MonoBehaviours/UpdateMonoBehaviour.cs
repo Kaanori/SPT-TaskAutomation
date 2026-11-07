@@ -29,16 +29,11 @@ namespace TaskAutomation.MonoBehaviours
         private QuestController? abstractQuestController;
         private CancellationToken? cancellationToken;
         private CancellationTokenSource? cancellationTokenSource;
-        private Type? conditionChecker;
-        private Type? dailyQuestType;
         private bool didInvestigate = false;
-        private MethodInfo? itemsProviderMethod;
         private MongoID lastConditionHandoverItemId = MongoID.Generate();
         private DateTime? lastRun = null;
-        private FieldInfo? openFieldInfo;
-        private ClientBackendSession? profileEndpointFactory;
-
         private Coroutine? runningCoroutine;
+        private ITradingSession? tradingSession;
         private DialogWindowContext? windowContext;
 
         public void SetAbstractQuestController(QuestController abstractQuestController)
@@ -49,16 +44,11 @@ namespace TaskAutomation.MonoBehaviours
             this.startCoroutine();
         }
 
-        public void SetReflection(Type conditionChecker, MethodInfo itemsProviderMethod, Type dailyQuistType, ClientBackendSession profileEndpointFactory)
+        public void SetSession(ITradingSession tradingSession)
         {
-            this.conditionChecker = conditionChecker;
-            this.itemsProviderMethod = itemsProviderMethod;
-            this.dailyQuestType = dailyQuistType;
-            this.profileEndpointFactory = profileEndpointFactory;
-            this.openFieldInfo = typeof(HandoverQuestItemsWindow).GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.NonPublic).FirstOrDefault(fi => fi.Name == "Open");
-            LogHelper.LogInfo($"{this.openFieldInfo}");
+            this.tradingSession = tradingSession;
             if (Globals.Debug)
-                LogHelper.LogInfo($"SetReflection");
+                LogHelper.LogInfo($"SetSession");
         }
 
         public void UnsetAbstractQuestController()
@@ -132,11 +122,10 @@ namespace TaskAutomation.MonoBehaviours
             if (quest.IsConditionDone(condition))
                 return;
             quest.ProgressCheckers[condition].SetCurrentValueGetter(_ => condition.value);
-            FieldInfo conditionControllerFieldInfo = abstractQuestController.GetType().GetFields().FirstOrDefault(fi => fi.FieldType == this.conditionChecker);
-            if (conditionControllerFieldInfo == null)
+            object conditionController = abstractQuestController.ConditionsConnectorsManager;
+            if (conditionController == null)
                 return;
-            var conditionController = conditionControllerFieldInfo.GetValue(abstractQuestController);
-            MethodInfo setConditionCurrentValueMethodInfo = AccessTools.DeclaredMethod(conditionController.GetType().BaseType, "SetConditionCurrentValue");
+            MethodInfo setConditionCurrentValueMethodInfo = AccessTools.Method(conditionController.GetType(), "SetConditionCurrentValue");
             if (setConditionCurrentValueMethodInfo == null)
                 return;
             setConditionCurrentValueMethodInfo.Invoke(conditionController, new object[] { quest, EQuestStatus.AvailableForFinish, condition, condition.value, true });
@@ -373,7 +362,7 @@ namespace TaskAutomation.MonoBehaviours
                         double expectedValue = condition.value;
                         if (currentValue < expectedValue)
                             handoverValue = expectedValue - currentValue;
-                        Item[]? result = this.itemsProviderMethod?.Invoke(null, new object[] { abstractQuestController.Profile.Inventory, condition }) as Item[];
+                        Item[]? result = ConditionalController<Quest>.GetItemsForCondition(abstractQuestController.Profile.Inventory, conditionHandoverItem);
                         if (result == null || result.Length == 0)
                             continue;
                         if (this.isBlockedCurrency(result.FirstOrDefault(), (int)handoverValue))
@@ -589,12 +578,10 @@ namespace TaskAutomation.MonoBehaviours
 
         private bool isHandoverQuestItemsWindowOpen()
         {
-            if (this.openFieldInfo == null)
-                return false;
             HandoverQuestItemsWindow handoverItemsWindow = ItemUiContext.Instance.HandoverQuestItemsWindow;
             if (handoverItemsWindow == null)
                 return false;
-            return (bool)this.openFieldInfo.GetValue(handoverItemsWindow);
+            return handoverItemsWindow.Open;
         }
 
         private bool isInEquipmentSlot(Item item)
@@ -687,7 +674,7 @@ namespace TaskAutomation.MonoBehaviours
         {
             if (Globals.AutoAcceptDailyQuests)
                 return true;
-            return quest.Template.GetType() != this.dailyQuestType;
+            return quest.Template is not RepeatableQuestTemplate;
         }
 
         private bool shouldAcceptQuestThatCanFail(Quest quest)
@@ -730,7 +717,7 @@ namespace TaskAutomation.MonoBehaviours
         private void showHandoverQuestItemsWindow(QuestController abstractQuestController, Quest quest, ConditionHandoverItem conditionHandoverItem, Item[] result, double currentValue, double handoverValue)
         {
             string traderId = quest.Template.TraderId;
-            Trader? trader = this.profileEndpointFactory?._traders.First((Trader trader) => trader.Id == traderId);
+            Trader? trader = this.tradingSession?.GetTrader(traderId);
             if (trader == null)
                 return;
             ItemController? traderController = trader.TraderController;

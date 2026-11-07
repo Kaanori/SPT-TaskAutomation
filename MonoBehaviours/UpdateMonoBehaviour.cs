@@ -32,6 +32,7 @@ namespace TaskAutomation.MonoBehaviours
         private bool didInvestigate = false;
         private MongoID lastConditionHandoverItemId = MongoID.Generate();
         private DateTime? lastRun = null;
+        private FieldInfo? openFieldInfo;
         private Coroutine? runningCoroutine;
         private ITradingSession? tradingSession;
         private DialogWindowContext? windowContext;
@@ -46,6 +47,9 @@ namespace TaskAutomation.MonoBehaviours
 
         public void SetSession(ITradingSession tradingSession)
         {
+            this.openFieldInfo = typeof(HandoverQuestItemsWindow).GetFields(BindingFlags.Instance | BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.NonPublic).FirstOrDefault(fi => fi.Name == "Open");
+            LogHelper.LogInfo($"{this.openFieldInfo}");
+
             this.tradingSession = tradingSession;
             if (Globals.Debug)
                 LogHelper.LogInfo($"SetSession");
@@ -578,10 +582,13 @@ namespace TaskAutomation.MonoBehaviours
 
         private bool isHandoverQuestItemsWindowOpen()
         {
+            if (this.openFieldInfo == null)
+                return false;
+
             HandoverQuestItemsWindow handoverItemsWindow = ItemUiContext.Instance.HandoverQuestItemsWindow;
             if (handoverItemsWindow == null)
                 return false;
-            return handoverItemsWindow.Open;
+            return (bool)this.openFieldInfo.GetValue(handoverItemsWindow);
         }
 
         private bool isInEquipmentSlot(Item item)

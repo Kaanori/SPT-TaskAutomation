@@ -22,6 +22,7 @@ internal static class Globals
     public static bool Debug = false;
     public static KeyboardShortcut InvestigateKeys = new KeyboardShortcut(KeyCode.I, KeyCode.LeftControl);
     public static KeyboardShortcut ResetDeclinedHandoverItemConditionsKeys = new KeyboardShortcut(KeyCode.R, KeyCode.LeftControl);
+    public static bool SkipDialogueQuests = true;
     public static bool SkipElimination = false;
     public static bool SkipFindAndObtain = false;
     public static bool SkipFindInRaid = false;

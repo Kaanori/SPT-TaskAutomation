@@ -18,6 +18,7 @@ namespace TaskAutomation
         private ConfigEntry<bool> autoAcceptDailyQuests;
         private ConfigEntry<bool> autoAcceptQuests;
         private ConfigEntry<bool> autoAcceptQuestsThatCanFail;
+        private ConfigEntry<bool> skipDialogueQuests;
         private ConfigEntry<bool> autoAcceptScavQuests;
         private ConfigEntry<bool> autoCompleteQuests;
         private ConfigEntry<bool> autoHandleQuestsThatFailOther;
@@ -118,6 +119,9 @@ namespace TaskAutomation
             this.autoAcceptQuestsThatCanFail = this.Config.Bind("Automation", "AutoAcceptQuestsThatCanFail", false, "Automatically accept quests that are that can fail.");
             this.autoAcceptQuestsThatCanFail.SettingChanged += this.global_SettingChanged;
 
+            this.skipDialogueQuests = this.Config.Bind("Automation", "SkipDialogueQuests", true, "Quests that are started in a trader dialogue (they have a dialogueId) are not auto-accepted - accepting them from the task list skips the dialogue and can break the story.");
+            this.skipDialogueQuests.SettingChanged += this.global_SettingChanged;
+
             this.autoAcceptScavQuests = this.Config.Bind("Automation", "AutoAcceptScavQuests", false, "Automatically accept scav quests.");
             this.autoAcceptScavQuests.SettingChanged += this.global_SettingChanged;
 
@@ -187,6 +191,7 @@ namespace TaskAutomation
             Globals.AutoAcceptDailyQuests = this.autoAcceptDailyQuests.Value;
             Globals.AutoAcceptQuests = this.autoAcceptQuests.Value;
             Globals.AutoAcceptQuestsThatCanFail = this.autoAcceptQuestsThatCanFail.Value;
+            Globals.SkipDialogueQuests = this.skipDialogueQuests.Value;
             Globals.AutoAcceptScavQuests = this.autoAcceptScavQuests.Value;
             Globals.AutoCompleteQuests = this.autoCompleteQuests.Value;
             Globals.AutoHandleQuestsThatFailOther = this.autoHandleQuestsThatFailOther.Value;

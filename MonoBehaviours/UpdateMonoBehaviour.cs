@@ -649,6 +649,7 @@ namespace TaskAutomation.MonoBehaviours
                 || this.isMarkedAsFailRestartable(quest))
                 && this.shouldAcceptQuestThatCanFail(quest)
                 && this.shouldAcceptDailyQuists(quest)
+                && this.shouldAcceptDialogueQuest(quest)
                 && this.isUnlockedTrader(quest.Template.TraderId);
         }
 
@@ -682,6 +683,13 @@ namespace TaskAutomation.MonoBehaviours
             if (Globals.AutoAcceptDailyQuests)
                 return true;
             return quest.Template is not RepeatableQuestTemplate;
+        }
+
+        private bool shouldAcceptDialogueQuest(Quest quest)
+        {
+            if (Globals.SkipDialogueQuests == false)
+                return true;
+            return quest.Template.DialogId.HasValue == false;
         }
 
         private bool shouldAcceptQuestThatCanFail(Quest quest)

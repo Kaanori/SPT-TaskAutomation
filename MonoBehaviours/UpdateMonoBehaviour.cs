@@ -103,6 +103,33 @@ namespace TaskAutomation.MonoBehaviours
                 && Singleton<AbstractGame>.Instance?.GameType != EGameType.Hideout;
         }
 
+        /// <summary>
+        /// Story chapters (for example from VisitAPI) are container quests: every finish condition
+        /// is "complete quest X". Normal trader quests always have at least one real objective.
+        /// The chapter and all quests it requires are part of the story line.
+        /// </summary>
+        private static HashSet<string> getStoryQuestIds(IEnumerable<Quest> quests)
+        {
+            HashSet<string> storyQuestIds = [];
+            foreach (Quest quest in quests)
+            {
+                if (quest.Template?.Conditions == null
+                    || quest.Template.Conditions.ContainsKey(EQuestStatus.AvailableForFinish) == false)
+                    continue;
+                var finishConditions = quest.Template.Conditions[EQuestStatus.AvailableForFinish].List;
+                if (finishConditions.Any() == false
+                    || finishConditions.All(condition => condition is ConditionQuest) == false)
+                    continue;
+                storyQuestIds.Add(quest.Id);
+                foreach (ConditionQuest conditionQuest in finishConditions.OfType<ConditionQuest>())
+                {
+                    if (string.IsNullOrEmpty(conditionQuest.target) == false)
+                        storyQuestIds.Add(conditionQuest.target);
+                }
+            }
+            return storyQuestIds;
+        }
+
         private static bool isQuestThatFailsByQuest(Quest quest, string target)
         {
             if (quest.Template.Conditions.ContainsKey(EQuestStatus.Fail) == false)
@@ -291,7 +318,9 @@ namespace TaskAutomation.MonoBehaviours
             if (this.abstractQuestController == null)
                 return [];
             QuestBook quests = this.abstractQuestController.Quests;
-            IEnumerable<Quest> questsReadyToStart = quests.Where(this.isReadyToStart);
+            HashSet<string> storyQuestIds = Globals.SkipDialogueQuests ? getStoryQuestIds(quests) : [];
+            IEnumerable<Quest> questsReadyToStart = quests.Where(quest => this.isReadyToStart(quest)
+                && storyQuestIds.Contains(quest.Id) == false);
             return questsReadyToStart.Select(quest => quest.Id).ToList();
         }
 
